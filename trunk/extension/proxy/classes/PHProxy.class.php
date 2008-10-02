@@ -36,12 +36,12 @@ class PHProxy
     // Configurable vars
     //
 
-    var $banned_hosts = array
-   (
+    public $banned_hosts = array
+    (
        '.localhost',
        '127.0.0.1'
     );
-    var $flags = array
+    public $flags = array
     (
         'include_form'    => 1, 
         'remove_scripts'  => 0,
@@ -63,7 +63,7 @@ class PHProxy
     // Edit the $config variables in index.php and javascript.js instead
     //
 
-    var $config = array
+    public $config = array
     (
         'url_var_name'             => 'q',
         'flags_var_name'           => 'hl',
@@ -73,30 +73,29 @@ class PHProxy
         'max_file_size'            => -1
     );
 
-    var $version;
-    var $script_url;
-    var $http_host;
-    var $url;
-    var $url_segments;
-    var $base;
+    public $version;
+    public $script_url;
+    public $http_host;
+    public $url;
+    public $url_segments;
+    public $base;
 
-    var $socket;
+    public $socket;
 
+    public $request_method;
+    public $request_headers;
+    public $basic_auth_header;
+    public $basic_auth_realm;
+    public $data_boundary;
+    public $post_body;
 
-    var $request_method;
-    var $request_headers;
-    var $basic_auth_header;
-    var $basic_auth_realm;
-    var $data_boundary;
-    var $post_body;
+    public $response_headers;
+    public $response_code;
+    public $content_type;
+    public $content_length;
+    public $response_body;
 
-    var $response_headers;
-    var $response_code;
-    var $content_type;
-    var $content_length;
-    var $response_body;
-
-    function PHProxy($config, $flags = 'previous')
+    public function PHProxy($config, $flags = 'previous')
     {
         $this->version    = '0.4';
         $this->http_host  = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : (isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'localhost');
@@ -144,7 +143,7 @@ class PHProxy
         }
     }
 
-    function start_transfer($url)
+    public function start_transfer($url)
     {
         $this->set_url($url);
         $this->open_socket();
@@ -164,7 +163,7 @@ class PHProxy
         }
     }
 
-    function set_response()
+    public function set_response()
     {
         fwrite($this->socket, $this->request_headers);
 
@@ -232,7 +231,7 @@ class PHProxy
         }
     }
 
-    function set_content_type()
+    public function set_content_type()
     {
         if (preg_match("#content-type:([^\r\n]*)#i", $this->response_headers, $matches) && trim($matches[1]) != '')
         {
@@ -245,7 +244,7 @@ class PHProxy
         }
     }
 
-    function set_content_length()
+    public function set_content_length()
     {
         if (preg_match("#content-length:([^\r\n]*)#i", $this->response_headers, $matches) && trim($matches[1]) != '')
         {
@@ -257,7 +256,7 @@ class PHProxy
         }
     }
 
-    function http_basic_auth()
+    public function http_basic_auth()
     {
         if (empty($this->response_code))
         {
@@ -280,13 +279,13 @@ class PHProxy
         return false;
     }
 
-    function set_authorization($username, $password)
+    static function set_authorization($username, $password)
     {
         $this->basic_auth_header = base64_encode(sprintf('%s:%s', $username, $password));
         setcookie(urlencode("AUTH;{$this->url_segments['host']}"), $this->basic_auth_header, 0, '', $this->http_host);
     }
 
-    function set_url($url)
+    public function set_url($url)
     {
          $this->url = decode_url($url);
 
@@ -310,7 +309,7 @@ class PHProxy
          }
     }
 
-    function parse_url($url, & $container)
+    static function parse_url($url, & $container)
     {
         $temp = @parse_url($url);
         
@@ -346,7 +345,7 @@ class PHProxy
         return false;
     }
 
-    function is_allowed_host()
+    public function is_allowed_host()
     {
         if (!empty($this->banned_hosts))
         {
@@ -364,7 +363,7 @@ class PHProxy
         return true;
     }
 
-    function modify_urls()
+    public function modify_urls()
     {
         // this was a bitch to code
         // follows CGIProxy's logic of his HTML routine in some aspects
@@ -625,7 +624,7 @@ class PHProxy
         }
     }
 
-    function proxify_css($css)
+    static function proxify_css($css)
     {
        preg_match_all('#url\s*\(\s*(([^)]*(\\\))*[^)]*)(\)|$)?#i', $css, $matches, PREG_SET_ORDER);
 
@@ -653,7 +652,7 @@ class PHProxy
        return $css;
     }
 
-    function proxify_css_url($url)
+    static function proxify_css_url($url)
     {
         $url = trim($url);
         $delim = '';
@@ -677,7 +676,7 @@ class PHProxy
         return $delim . $url . $delim;
     }
 
-    function set_flags($flags)
+    public function set_flags($flags)
     {
         if (is_numeric($flags))
         {
@@ -705,7 +704,7 @@ class PHProxy
         }
     }
 
-    function set_request_headers()
+    public function set_request_headers()
     {
         $path = preg_replace('#/{2,}#', '/', $this->url_segments['path']);
         $path = preg_replace('#([^.]+)(\.\/)*#', '$1', $path);
@@ -766,7 +765,7 @@ class PHProxy
         $this->request_headers = $headers;
     }
 
-    function follow_location()
+    public function follow_location()
     {
         if ( $this->response_code > 299 and $this->response_code < 400 and preg_match("#(location|uri|content-location):([^\r\n]*)#i", $this->response_headers, $matches))
         {
@@ -782,7 +781,7 @@ class PHProxy
         return false;
     }
 
-    function set_cookies()
+    public function set_cookies()
     {
         if (preg_match_all("#set-cookie:([^\r\n]*)#i", $this->response_headers, $matches))
         {
@@ -817,7 +816,7 @@ class PHProxy
         }
     }
 
-    function get_cookies($type = 'COOKIE', $restrict = true)
+    public function get_cookies($type = 'COOKIE', $restrict = true)
     {
         if (!empty($_COOKIE))
         {
@@ -873,7 +872,7 @@ class PHProxy
         }
     }
 
-    function delete_cookies($hash)
+    static function delete_cookies($hash)
     {
         $cookies = $this->get_cookies('COOKIE', false);
 
@@ -886,7 +885,7 @@ class PHProxy
         }
     }
 
-    function send_response_headers()
+    public function send_response_headers()
     {
         $headers = explode("\r\n", $this->response_headers);
         $headers[] = 'Content-Disposition: ' . ($this->content_type == 'application/octet_stream' ? 'attachment' : 'inline') . '; filename=' . $this->url_segments['file'];
@@ -905,7 +904,7 @@ class PHProxy
         }
     }
 
-    function return_response($send_headers = true)
+    public function return_response($send_headers = true)
     {
         if ($this->content_type == 'text/css')
         {
@@ -937,7 +936,7 @@ class PHProxy
         return $this->response_body;
     }
 
-    function remove_scripts()
+    static function remove_scripts()
     {
         $this->response_body = preg_replace('#<script[^>]*?>.*?</script>#si', '', $this->response_body); // Remove any scripts enclosed between <script />
         $this->response_body = preg_replace("#(\bon[a-z]+)\s*=\s*(?:\"([^\"]*)\"?|'([^']*)'?|([^'\"\s>]*))?#i", '', $this->response_body); // Remove javascript event handlers
@@ -945,13 +944,13 @@ class PHProxy
 
     }
 
-    function trigger_error($error, $retry = false)
+    static function trigger_error($error, $retry = false)
     {
         header("Location: $this->script_url?" . ($retry ? "retry=$retry&error=$error" : "error=$error" ));
         exit(); 
     }
 
-    function options_list($tabulate = false, $comments_on = false)
+    static function options_list($tabulate = false, $comments_on = false)
     {
         $output   = '';
         $comments = array();
@@ -986,7 +985,7 @@ class PHProxy
         return $output;
     }
 
-    function proxify_url($url, &$rebuild,  $proxify = true )
+    public function proxify_url($url, &$rebuild,  $proxify = true )
     {
         $url = trim($url);
 

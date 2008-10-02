@@ -8,29 +8,29 @@
  * @license http://www.gnu.org/licenses/gpl.txt GPL License
  */
 
-include_once( 'extension/proxy/classes/ezproxy.php' );
-include_once( 'lib/ezfile/classes/ezlog.php' );
-include_once( 'lib/ezxml/classes/ezxml.php' );
+//include_once( 'extension/proxy/classes/ezproxy.php' );
+//include_once( 'lib/ezfile/classes/ezlog.php' );
+//include_once( 'lib/ezxml/classes/ezxml.php' );
 include_once( 'kernel/common/template.php' );
-include_once( 'kernel/classes/ezcontentobjecttreenode.php' );
-include_once( 'kernel/classes/eznodeviewfunctions.php' );
+//include_once( 'kernel/classes/ezcontentobjecttreenode.php' );
+//include_once( 'kernel/classes/eznodeviewfunctions.php' );
 $proxyini = eZINI::instance( 'proxy.ini' );
 
 
 if ( !$proxyini->hasGroup( $Params['proxyname'] ) )
 {
     eZDebug::writeError('No such group "' . $Params['proxyname']. '"', "Proxy" );
-    return $Module->handleError( EZ_ERROR_KERNEL_NOT_AVAILABLE, 'kernel' );
+    return $Module->handleError(  eZError::KERNEL_NOT_AVAILABLE, 'kernel' );
 }
 if ( !$proxyini->hasVariable( $Params['proxyname'], 'URL' ) )
 {
     eZDebug::writeError('No URL in group "' . $Params['proxyname']. '"', "Proxy" );
-    return $Module->handleError( EZ_ERROR_KERNEL_ACCESS_DENIED, 'kernel' );
+    return $Module->handleError( eZError::KERNEL_ACCESS_DENIED, 'kernel' );
 }
 $url = $proxyini->variable($Params['proxyname'], 'URL' );
 $id = $proxyini->variable($Params['proxyname'], 'ID' );
-$NodeID = $Params['node_id'];
-$ViewMode = $Params['view'];
+$NodeID = $Params['NodeID'];
+$ViewMode = $Params['ViewMode'];
 
 
 $flags = array
@@ -78,7 +78,7 @@ $testurlB = parse_url( $url );
 if ( $testurlB['host'] != $testurlA['host'] )
 {
     eZDebug::writeError( 'Host mismatch in group "' . $Params['proxyname'] . '". ' . $testurlB['host'] .' vs ' . $testurlA['host'], "Proxy" );
-    return $Module->handleError( EZ_ERROR_KERNEL_ACCESS_DENIED, 'kernel' );
+    return $Module->handleError( eZError::KERNEL_ACCESS_DENIED, 'kernel' );
 }
 
 
@@ -113,7 +113,7 @@ elseif( count( $arr ) and !preg_match('#\?#', $url) )
 }
 eZDebug::accumulatorStart( 'proxy_request', 'proxy_total', 'proxy_requests' );
 if ( $PHProxy->start_transfer( encode_url( $url ) ) === false )
-        return $Module->handleError( EZ_ERROR_KERNEL_NOT_AVAILABLE, 'kernel' );
+        return $Module->handleError( eZError::KERNEL_NOT_AVAILABLE, 'kernel' );
 eZDebug::accumulatorStop( 'proxy_request' );
 eZDebug::accumulatorStart( 'proxy_parsing', 'proxy_total', 'proxy_parsing' );
 if ( $PHProxy->content_type == "text/html" )
@@ -124,8 +124,7 @@ else
     exit();
 }
 
-include_once( "lib/ezi18n/classes/eztextcodec.php" );
-$OutputTextCodec =& eZTextCodec::instance( 'iso-8859-1', false, false );
+$OutputTextCodec = eZTextCodec::instance( 'iso-8859-1', false, false );
 $response = $OutputTextCodec->convertString( $response );
 
 eZDebug::writeDebug( $response , "Proxy: RAW Response");
@@ -166,7 +165,6 @@ if ( $dom )
         {
             $doc = new eZDOMDocument();
             $doc->setRoot( $Child );
-            $out .= $doc->toString();
         }
     }
     $out = str_replace( '<?xml version="1.0" encoding="UTF-8"?>' . "\n", '', $out );
@@ -195,125 +193,195 @@ eZLog::write( "\n" . $response . "\n---------------------","proxy.log");
 unlink( 'var/log/proxy_out.log' );
 eZLog::write( "\n" . $out . "\n---------------------","proxy_out.log");
 eZDebug::writeDebug( $out , "Proxy output");
-$tpl =& templateInit();
+$tpl = templateInit();
 $tpl->setVariable( 'proxy_result', $out );
 
-$Result = array();
 
- 	
+$http = eZHTTPTool::instance();
 
+$tpl = templateInit();
 
-                              
-                              
-$cacheFileArray = array( 'cache_dir' => false, 'cache_path' => false );
+$ViewMode = $Params['ViewMode'];
+$NodeID = $Params['NodeID'];
+$Module = $Params['Module'];
+$LanguageCode = $Params['Language'];
+$Offset = $Params['Offset'];
+$Year = $Params['Year'];
+$Month = $Params['Month'];
+$Day = $Params['Day'];
 
-    $node = eZContentObjectTreeNode::fetch( $NodeID );
+// Check if we should switch access mode (http/https) for this node.
+//include_once( 'kernel/classes/ezsslzone.php' );
+eZSSLZone::checkNodeID( 'content', 'view', $NodeID );
 
-    if ( !is_object( $node ) )
-        return $Module->handleError( EZ_ERROR_KERNEL_NOT_AVAILABLE, 'kernel' );
-
-    $object =& $node->attribute( 'object' );
-
-    if ( !is_object( $object ) )
-        return $Module->handleError( EZ_ERROR_KERNEL_NOT_AVAILABLE, 'kernel' );
-
-    if ( !get_class( $object ) == 'ezcontentobject' )
-        return $Module->handleError( EZ_ERROR_KERNEL_NOT_AVAILABLE, 'kernel' );
-
-    if ( $node === null )
-        return $Module->handleError( EZ_ERROR_KERNEL_NOT_AVAILABLE, 'kernel' );
-
-    if ( $object === null )
-        return $Module->handleError( EZ_ERROR_KERNEL_ACCESS_DENIED, 'kernel' );
-
-    if ( $node->attribute( 'is_invisible' ) && !eZContentObjectTreeNode::showInvisibleNodes() )
-        return $Module->handleError( EZ_ERROR_KERNEL_ACCESS_DENIED, 'kernel' );
-
-    if ( !$object->canRead() )
-    {
-        return $Module->handleError( EZ_ERROR_KERNEL_ACCESS_DENIED, 'kernel', array( 'AccessList' => $object->accessList( 'read' ) ) );
-    }
-                                 
-                              
-                              
-// caching of the node                              
- $Result =& eZNodeviewfunctions::generateNodeView( $tpl, $node, $object, $LanguageCode, $ViewMode, $Offset,
-                                                     $cacheFileArray['cache_dir'], $cacheFileArray['cache_path'], $viewCacheEnabled, $viewParameters,
-                                                     $collectionAttributes, $validation ); 	                              
-                              
-
-// setting custom module_result e.g. $layout for SiteDesign     
-
-
-$data_map =$node->DataMap();
-if ( isset( $data_map['layout'] ) )
+if ( isset( $Params['UserParameters'] ) )
 {
-	$layoutSelectionArray = $data_map['layout']->content();
-	$layout = $layoutSelectionArray[0];
+    $UserParameters = $Params['UserParameters'];
 }
-                                                     
-		$section = eZSection::fetch( $object->attribute( 'section_id' ) );
-        if ( $section )
-            $navigationPartIdentifier = $section->attribute( 'navigation_part_identifier' );
-        else
-            $navigationPartIdentifier = null;
-        $parents =& $node->attribute( 'path' );
+else
+{
+    $UserParameters = array();
+}
 
-        $path = array();
-        $titlePath = array();
-        foreach ( $parents as $parent )
+if ( $Offset )
+    $Offset = (int) $Offset;
+if ( $Year )
+    $Year = (int) $Year;
+if ( $Month )
+    $Month = (int) $Month;
+if ( $Day )
+    $Day = (int) $Day;
+
+if ( $NodeID < 2 )
+    $NodeID = 2;
+
+if ( !is_numeric( $Offset ) )
+    $Offset = 0;
+
+$ini = eZINI::instance();
+$viewCacheEnabled = ( $ini->variable( 'ContentSettings', 'ViewCaching' ) == 'enabled' );
+
+if ( isset( $Params['ViewCache'] ) )
+{
+    $viewCacheEnabled = $Params['ViewCache'];
+}
+elseif ( $viewCacheEnabled && !in_array( $ViewMode, $ini->variableArray( 'ContentSettings', 'CachedViewModes' ) ) )
+{
+    $viewCacheEnabled = false;
+}
+
+$collectionAttributes = false;
+if ( isset( $Params['CollectionAttributes'] ) )
+    $collectionAttributes = $Params['CollectionAttributes'];
+
+$validation = array( 'processed' => false,
+                     'attributes' => array() );
+if ( isset( $Params['AttributeValidation'] ) )
+    $validation = $Params['AttributeValidation'];
+
+// Check if read operations should be used
+$workflowINI = eZINI::instance( 'workflow.ini' );
+$operationList = $workflowINI->variableArray( 'OperationSettings', 'AvailableOperations' );
+$operationList = array_unique( array_merge( $operationList, $workflowINI->variable( 'OperationSettings', 'AvailableOperationList' ) ) );
+if ( in_array( 'content_read', $operationList ) )
+{
+    $useTriggers = true;
+}
+else
+{
+    $useTriggers = false;
+}
+
+$res = eZTemplateDesignResource::instance();
+$keys = $res->keys();
+if ( isset( $keys['layout'] ) )
+    $layout = $keys['layout'];
+else
+    $layout = false;
+
+$viewParameters = array( 'offset' => $Offset,
+                         'year' => $Year,
+                         'month' => $Month,
+                         'day' => $Day,
+                         'namefilter' => false );
+$viewParameters = array_merge( $viewParameters, $UserParameters );
+
+$user = eZUser::currentUser();
+
+eZDebugSetting::addTimingPoint( 'kernel-content-view', 'Operation start' );
+
+
+//include_once( 'lib/ezutils/classes/ezmoduleoperationdefinition.php' );
+
+$operationResult = array();
+
+if ( $useTriggers == true )
+{
+    //include_once( 'lib/ezutils/classes/ezoperationhandler.php' );
+    //include_once( 'kernel/classes/eztrigger.php' );
+
+    $operationResult = eZOperationHandler::execute( 'content', 'read', array( 'node_id' => $NodeID,
+                                                                              'user_id' => $user->id(),
+                                                                              'language_code' => $LanguageCode ), null, $useTriggers );
+}
+
+if ( ( array_key_exists(  'status', $operationResult ) && $operationResult['status'] != eZModuleOperationInfo::STATUS_CONTINUE ) )
+{
+    switch( $operationResult['status'] )
+    {
+        case eZModuleOperationInfo::STATUS_HALTED:
         {
-            $path[] = array( 'text' => $parent->attribute( 'name' ),
-                             'url' => '/content/view/full/' . $parent->attribute( 'node_id' ),
-                             'url_alias' => $parent->attribute( 'url_alias' ),
-                             'node_id' => $parent->attribute( 'node_id' )
-                             );
-        }
-
-        $titlePath = $path;
-        $path[] = array( 'text' => $object->attribute( 'name' ),
-                         'url' => false,
-                         'url_alias' => false,
-                         'node_id' => $node->attribute( 'node_id' ) );
-
-        $titlePath[] = array( 'text' => $object->attribute( 'name' ),
-                              'url' => false,
-                              'url_alias' => false );                                                     
-                                                     
-                                                     
-$Result['view_parameters'] =& $viewParameters;
-$Result['path'] =& $path;
-$Result['title_path'] =& $titlePath;
-$Result['section_id'] =& $object->attribute( 'section_id' );
-$Result['node_id'] =& $node->attribute( 'node_id' );
-$Result['navigation_part'] = $navigationPartIdentifier;
-
- 		$contentInfoArray = array();
-        $contentInfoArray['object_id'] = $object->attribute( 'id' );
-        $contentInfoArray['node_id'] = $node->attribute( 'node_id' );
-        $contentInfoArray['parent_node_id'] =  $node->attribute( 'parent_node_id' );
-        $contentInfoArray['class_id'] = $object->attribute( 'contentclass_id' );
-        $contentInfoArray['class_identifier'] = $node->attribute( 'class_identifier' );
-        $contentInfoArray['offset'] = $offset;
-        $contentInfoArray['viewmode'] = $viewMode;
-        $contentInfoArray['navigation_part_identifier'] = $navigationPartIdentifier;
-        $contentInfoArray['node_depth'] = $node->attribute( 'depth' );
-        $contentInfoArray['url_alias'] = $node->attribute( 'url_alias' );
-        $contentInfoArray['persistent_variable'] = false;
-        $contentInfoArray['layout'] = $layout;
-        
-        if ( $tpl->variable( 'persistent_variable' ) !== false )
+            if ( isset( $operationResult['redirect_url'] ) )
+            {
+                $Module->redirectTo( $operationResult['redirect_url'] );
+                return;
+            }
+            else if ( isset( $operationResult['result'] ) )
+            {
+                $result = $operationResult['result'];
+                $resultContent = false;
+                if ( is_array( $result ) )
+                {
+                    if ( isset( $result['content'] ) )
+                    {
+                        $resultContent = $result['content'];
+                    }
+                    if ( isset( $result['path'] ) )
+                    {
+                        $Result['path'] = $result['path'];
+                    }
+                }
+                else
+                {
+                    $resultContent = $result;
+                }
+                $Result['content'] = $resultContent;
+            }
+        } break;
+        case eZModuleOperationInfo::STATUS_CANCELLED:
         {
-            $contentInfoArray['persistent_variable'] = $tpl->variable( 'persistent_variable' );
-        }
-        $contentInfoArray['class_group'] = $object->attribute( 'match_ingroup_id_list' );
-
-$Result['content_info'] = $contentInfoArray;
-
+            $Result = array();
+            $Result['content'] = "Content view cancelled<br/>";
+        } break;
+    }
     return $Result;
+}
+else
+{
+    $localVars = array( "cacheFileArray", "NodeID",   "Module", "tpl",
+                        "LanguageCode",   "ViewMode", "Offset", "ini",
+                        "cacheFileArray", "viewParameters",  "collectionAttributes",
+                        "validation" );
+    if ( $viewCacheEnabled )
+    {
+        $user = eZUser::currentUser();
+
+        $cacheFileArray = eZNodeviewfunctions::generateViewCacheFile( $user, $NodeID, $Offset, $layout, $LanguageCode, $ViewMode, $viewParameters );
+
+        $cacheFilePath = $cacheFileArray['cache_path'];
+
+        require_once( 'kernel/classes/ezclusterfilehandler.php' );
+        $cacheFile = eZClusterFileHandler::instance( $cacheFilePath );
+        $args = compact( $localVars );
+        $Result = $cacheFile->processCache( array( 'eZNodeviewfunctions', 'contentViewRetrieve' ),
+                                            array( 'eZNodeviewfunctions', 'contentViewGenerate' ),
+                                            null,
+                                            null,
+                                            $args );
+        return $Result;
+    }
+    else
+    {
+        $cacheFileArray = array( 'cache_dir' => false, 'cache_path' => false );
+        $args = compact( $localVars );
+        $data = eZNodeviewfunctions::contentViewGenerate( false, $args ); // the false parameter will disable generation of the 'binarydata' entry
+        return $data['content']; // Return the $Result array
+    }
+}
 
 
-function &findNode( &$root, $id = 'maincontent-design', $checkroot = true )
+
+function findNode( $root, $id = 'maincontent-design', $checkroot = true )
 {
     if ( $checkroot )
     {
@@ -339,7 +407,7 @@ function &findNode( &$root, $id = 'maincontent-design', $checkroot = true )
     }
     return false;
 }
-function &hasNodeAttribute( &$root, $id )
+function hasNodeAttribute( &$root, $id )
 {
     if ( is_array( $root->Attributes ) )
     {

@@ -18,7 +18,13 @@ $ViewList["view"] = array(
     'functions' => array( 'proxy' ),
     'default_navigation_part' => 'proxy',
     "script" => "view.php",
-    'params' => array( 'view', 'node_id', 'proxyname' ) );
+    'params' => array( 'ViewMode', 'NodeID', 'proxyname' ),
+'unordered_params' => array( 'language' => 'Language',
+                                 'offset' => 'Offset',
+                                 'year' => 'Year',
+                                 'month' => 'Month',
+                                 'day' => 'Day' ) );
+
 
 $FunctionList['proxy'] = array( );
 ?>

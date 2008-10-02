@@ -15,12 +15,12 @@ class eZProxy extends PHProxy
     // Configurable vars
     //
 
-    var $banned_hosts = array
-   (
+    public $banned_hosts = array
+    (
        '.localhost',
        '127.0.0.1'
     );
-    var $flags = array
+    public $flags = array
     (
         'include_form'    => 1, 
         'remove_scripts'  => 0,
@@ -42,7 +42,7 @@ class eZProxy extends PHProxy
     // Edit the $config variables in index.php and javascript.js instead
     //
 
-    var $config = array
+    public $config = array
     (
         'url_var_name'             => 'q',
         'flags_var_name'           => 'hl',
@@ -52,35 +52,36 @@ class eZProxy extends PHProxy
         'max_file_size'            => -1
     );
 
-    var $version;
-    var $script_url;
-    var $http_host;
-    var $url;
-    var $url_segments;
-    var $base;
+    public $version;
+    public $script_url;
+    public $http_host;
+    public $url;
+    public $url_segments;
+    public $base;
 
-    var $socket;
+    public $socket;
 
 
-    var $request_method;
-    var $request_headers;
-    var $basic_auth_header;
-    var $basic_auth_realm;
-    var $data_boundary;
-    var $post_body;
+    public $request_method;
+    public $request_headers;
+    public $basic_auth_header;
+    public $basic_auth_realm;
+    public $data_boundary;
+    public $post_body;
 
-    var $response_headers;
-    var $response_code;
-    var $content_type;
-    var $content_length;
-    var $response_body;
-	function eZProxy( $config, $flags = 'previous' )
+    public $response_headers;
+    public $response_code;
+    public $content_type;
+    public $content_length;
+    public $response_body;
+    
+	public function eZProxy( $config, $flags = 'previous' )
 	{
 		parent::PHProxy( $config, $flags );
 	}
-    function start_transfer($url)
+    public function start_transfer($url)
     {
-        $this->set_url($url);
+        parent::set_url($url);
         $this->open_socket();
         if ( $this->socket === false )
             return false;
@@ -90,7 +91,7 @@ class eZProxy extends PHProxy
         $this->set_response();
         $this->http_basic_auth();
     }
-    function open_socket()
+    public function open_socket()
     {
         $ini = eZINI::instance( "proxy.ini" );
         $this->socket = fsockopen($this->url_segments['host'], $this->url_segments['port'], $err_no, $err_str, $ini->variable( 'ProxySettings', 'SocketTimeout') );
@@ -100,14 +101,14 @@ class eZProxy extends PHProxy
             eZDebug::writeError( "Proxy Timeout", "eZProxy::open_socket()");
         }
     }
-    function set_post_body( $type, $array = array() )
+    public function set_post_body( $type, $array = array() )
     {
         /*  A POST var like "answer[3].answerId" is parsed in PHP like $_POST = array( 'answer' => array ( '22' ) );
                 <input type=hidden name="answer[0].answerId" value="22"/>
         */
         $this->post_body = @file_get_contents('php://input');
     }
-    function send_response_headers( $passthrough = false )
+    public function send_response_headers( $passthrough = false )
     {
         $headers = explode("\r\n", $this->response_headers);
         if ( $passthrough === false ) 
